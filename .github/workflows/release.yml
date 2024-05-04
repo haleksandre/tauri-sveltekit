@@ -1,0 +1,49 @@
+name: release
+on:
+  push:
+    branches:
+      - main
+      - next
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  # test:
+  #   permissions:
+  #     contents: write
+  #   uses: ./.github/workflows/test.yml
+  #   secrets: inherit
+  
+  release:
+    # if: needs.test.result == 'success'
+    # needs: test
+    permissions:
+      contents: write # to create release (changesets/action)
+      pull-requests: write # to create pull request (changesets/action)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Build
+        uses: ./.github/setup
+
+      - name: Next Version
+        run: |
+          echo "VERSION=$(bun x changeset status --output=release.json && jq -r '.releases[0].newVersion' release.json && rm release.json)" >> "$GITHUB_ENV"
+
+      - name: Create Release
+        id: changesets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: changesets/action@v1
+        with:
+          commit: "chore(release): v${{ env.VERSION }}"
+          title: "release v${{ env.VERSION }}"
+          version: bun x changeset version
+          publish: bun x changeset publish
