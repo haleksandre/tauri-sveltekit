@@ -1,0 +1,59 @@
+name: version
+on:
+  push:
+    branches:
+      - main
+      - next
+    paths:
+      - .changeset/**
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  test:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release)') }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
+  version:
+    needs: test
+    if: needs.test.result == 'success' && ${{ !startsWith(github.event.head_commit.message, 'chore(release)') }}
+    permissions:
+      contents: write # to create release (changesets/action)
+      pull-requests: write # to create pull request (changesets/action)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # This makes Actions fetch all Git history so that Changesets can generate changelogs with the correct commits
+          fetch-depth: 0
+
+      - name: Setup Build
+        uses: ./.github/actions/setup
+
+      - name: Next Version
+        id: version
+        env:
+          BRANCH: ${{ github.ref_name }}
+        shell: bash  
+        run: |
+          echo "version=$(bun x changeset status $(if [ ${{ env.BRANCH }} != "main" ]; then echo "--since origin/main"; fi ) --output=release.json && jq -r '.releases[0].newVersion' release.json && rm release.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Create Version
+        id: changesets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        uses: changesets/action@v1
+        with:
+          commit: 'chore(version): v${{ env.VERSION }}'
+          title: 'chore(release): v${{ env.VERSION }}'
+          version: bun x changeset version

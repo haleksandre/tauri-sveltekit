@@ -1,0 +1,320 @@
+name: release
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+      - next
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    permissions:
+      contents: write # to create release (changesets/action)
+      pull-requests: write # to create pull request (changesets/action)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            shell: bash
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      data: ${{ steps.release.outputs.data }}
+      id: ${{ steps.release.outputs.id }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      wix: ${{ steps.release.outputs.wix }}
+      semver: ${{ steps.release.outputs.semver }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # This makes Actions fetch all Git history so that Changesets can generate changelogs with the correct commits
+          fetch-depth: 0
+
+      - name: Setup Build
+        uses: ./.github/actions/setup
+
+      - name: Create Release
+        id: changesets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: changesets/action@v1
+        with:
+          version: bun x changeset version
+          publish: bun x changeset publish
+
+      - name: Get Release
+        id: release
+        if: ${{ steps.changesets.outputs.published == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |            
+            const { run } = await import("${{ github.workspace }}/.github/scripts/release.mjs");
+                      
+            await run(${{ steps.changesets.outputs.publishedPackages }}, { core, context, github })
+      
+  linux:
+    needs: release
+    if: ${{ needs.release.outputs.published }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            target: ''
+            args: ''
+            shell: bash
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          rust: true
+          ubuntu-dependencies: ${{ matrix.platform == 'ubuntu-latest' }}
+
+      - name: Build
+        id: build
+        uses: tauri-apps/tauri-action@v0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: bun x tauri
+          args: ${{ matrix.args }}
+
+      - name: Publish
+        id: publish
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.release.outputs.tag }}
+          files: |
+            src-tauri/target/**/bundle/**/*.+(deb|rpm|AppImage)*
+
+  macos:
+    needs: release
+    if: ${{ needs.release.outputs.published }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest # for Arm based macs (M1 and above).
+            target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin
+            shell: bash
+          - platform: macos-latest # for Intel based macs.
+            target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin
+            shell: bash
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          rust: true
+          ubuntu-dependencies: ${{ matrix.platform == 'ubuntu-latest' }}
+
+      - name: Build
+        id: build
+        uses: tauri-apps/tauri-action@v0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: bun x tauri
+          args: ${{ matrix.args }}
+
+      - name: Rename
+        run: |
+          find . -type f -name '*.app.tar.gz' -o -name '*.app.tar.gz.sig' | while read file; do
+            if [[ "$file" == *"x86_64"* ]]; then
+              name="${file/.app/_x64.app}"
+            elif [[ "$file" == *"aarch64"* ]]; then
+              name="${file/.app/_aarch64.app}"
+            else
+              continue
+            fi
+            
+            mv "$file" "$name"
+            
+            echo "renamed $file to $name"
+          done
+
+      - name: Publish
+        id: publish
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.release.outputs.tag }}
+          files: |
+            src-tauri/target/**/bundle/**/*.+(dmg|app)*
+            !*.xml
+            !*.applescript
+
+  windows:
+    needs: release
+    if: ${{ needs.release.outputs.published }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            target: aarch64-pc-windows-msvc
+            args: --target aarch64-pc-windows-msvc --bundles nsis
+            shell: pwsh
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            args: |
+              --target x86_64-pc-windows-msvc ${{ needs.release.outputs.prerelease && format('--config ''"{{ \"version\": \"{0}\" }}"''', needs.release.outputs.wix) || '' }}
+            shell: pwsh
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          rust: true
+          ubuntu-dependencies: ${{ matrix.platform == 'ubuntu-latest' }}
+
+      - name: Build
+        id: build
+        uses: tauri-apps/tauri-action@v0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: bun x tauri
+          args: ${{ matrix.args }}
+
+      - name: Publish
+        id: publish
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.release.outputs.tag }}
+          files: |
+            src-tauri/target/**/bundle/**/*.+(msi|nsis|exe)*
+            !**/*+(build)*.exe
+                              
+  android:
+    needs: release
+    if: ${{ needs.release.outputs.published }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            target: aarch64-linux-android,arm-linux-androideabi,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+            shell: bash
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+        with:
+          android: true
+
+      - name: Create Keys
+        id: signing
+        shell: bash
+        env:
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          ALIAS: ${{ secrets.ALIAS }}
+        run: |
+          echo $KEYSTORE | base64 --decode > $GITHUB_WORKSPACE/src-tauri/gen/android/app/keystore.jks
+          cat > $GITHUB_WORKSPACE/src-tauri/gen/android/app/key.properties<< EOF
+            storePassword=$STORE_PASSWORD
+            keyPassword=$KEY_PASSWORD
+            keyAlias=$ALIAS
+            storeFile=keystore.jks
+          EOF
+
+      - name: Build
+        uses: tauri-apps/tauri-action@v0
+        env:
+          NDK_HOME: ${{ steps.setup.outputs.ndk-path }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: bun x tauri android
+      
+      - name: Publish
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.release.outputs.tag }}
+          files: |
+            src-tauri/gen/android/app/**/*.apk
+
+  latest:
+    needs: [release, android, linux, macos, windows]
+    if: ${{ needs.release.outputs.published }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            target: aarch64-linux-android,arm-linux-androideabi,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+            shell: bash
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+        with:
+          android: true
+
+      - name: Latest Releases
+        id: release
+        if: ${{ needs.release.outputs.published == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |            
+            const { run } = await import("${{ github.workspace }}/.github/scripts/latest.mjs");
+                      
+            await run("${{ needs.release.outputs.tag }}", { core, context, github })
+  
+      - name: Publish
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.release.outputs.tag }}
+          files: |
+            latest.json
+          
