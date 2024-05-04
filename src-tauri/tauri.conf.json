@@ -1,0 +1,82 @@
+{
+	"$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/core/tauri-config-schema/schema.json",
+	"productName": "vndbracket",
+	"version": "../package.json",
+	"identifier": "com.vndbracket.dev",
+	"build": {
+		"frontendDist": "../dist",
+		"devUrl": "http://localhost:5173",
+		"beforeDevCommand": "bun x vite dev --host",
+		"beforeBuildCommand": "bun run build:frontend"
+	},
+	"app": {
+		"windows": [
+			{
+				"title": "vndbracket",
+				"width": 1280,
+				"height": 720
+			}
+		],
+		"security": {
+			"csp": null
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": "all",
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		]
+	},
+	"plugins": {
+		"cli": {
+			"description": "vndbracket cli",
+			"args": [
+				{
+					"short": "c",
+					"name": "config",
+					"takesValue": true,
+					"description": "Config path"
+				},
+				{
+					"short": "t",
+					"name": "theme",
+					"takesValue": true,
+					"description": "App theme",
+					"possibleValues": ["light", "dark", "system"]
+				},
+				{
+					"short": "v",
+					"name": "verbose",
+					"description": "Verbosity level"
+				}
+			],
+			"subcommands": {
+				"update": {
+					"description": "Updates the app",
+					"args": [
+						{
+							"short": "b",
+							"name": "background",
+							"description": "Update in background"
+						}
+					]
+				}
+			}
+		},
+		"shell": {
+			"open": true
+		},
+		"updater": {
+			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBOTcyN0Y1RUU0QTE0M0IKUldRN0ZFcnU5U2VYK242NE5pMVlBYndQNG5PVkZNdXZQMFRjdStUaFZDUituL0IvTFZZVEZwRkYK",
+			"endpoints": ["https://tauri-update-server.vercel.app/update/{{target}}/{{current_version}}"],
+			"windows": {
+				"installMode": "passive"
+			}
+		}
+	}
+}
