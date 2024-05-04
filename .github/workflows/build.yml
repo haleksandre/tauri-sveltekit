@@ -1,0 +1,66 @@
+name: build
+on:
+  workflow_call:
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: true
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            target: ''
+            args: ''
+            shell: bash
+          - platform: macos-latest # for Arm based macs (M1 and above).
+            target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin
+            shell: bash
+          - platform: macos-latest # for Intel based macs.
+            target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin
+            shell: bash
+          - platform: windows-latest
+            target: aarch64-pc-windows-msvc
+            args: --target aarch64-pc-windows-msvc --bundles nsis
+            shell: pwsh
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            args: --target x86_64-pc-windows-msvc
+            shell: pwsh
+          - platform: ubuntu-latest
+            target: aarch64-linux-android,arm-linux-androideabi,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+            args: ''
+            shell: bash
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          rust: true
+          playwright: true
+          ubuntu-dependencies: ${{ matrix.platform == 'ubuntu-latest' }}
+          android: ${{ matrix.platform == 'ubuntu-latest' && contains(matrix.target, 'android') }}
+
+      - name: Build Frontend
+        run: bun run build:frontend
+
+      - name: Build Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: bun x tauri
+          args: ${{ matrix.args }}
