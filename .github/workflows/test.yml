@@ -1,0 +1,90 @@
+name: test
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: write
+    secrets: inherit
+
+  test-unit:
+    needs: build
+    if: needs.build.result == 'success'
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            short: ubuntu
+          - platform: macos-latest
+            short: macos
+          - platform: windows-latest
+            short: windows
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Unit
+        uses: ./.github/actions/setup
+
+      - name: Test Unit
+        run: bun run test:unit -- --run --reporter=default --reporter=json --reporter=html --outputFile.json=reports/${{ matrix.short }}/unit/result.json --outputFile.html=reports/${{ matrix.short }}/unit/index.html
+
+      - name: Upload Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ matrix.short }}-unit
+          path: reports/${{ matrix.short }}/unit/
+
+  test-integration:
+    needs: build
+    if: needs.build.result == 'success'
+    env:
+      PLATFORM: ${{ matrix.short }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            short: ubuntu
+          - platform: macos-latest
+            short: macos
+          - platform: windows-latest
+            short: windows
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Integration
+        uses: ./.github/actions/setup
+        with:
+          playwright: true
+
+      - name: Test Integration
+        run: bun run test:integration
+
+      - name: Upload Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ matrix.short }}-intergration
+          path: reports/${{ matrix.short }}/integration
