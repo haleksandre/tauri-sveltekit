@@ -1,0 +1,35 @@
+name: Release
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+      - next
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == 'true'
+    permissions:
+      contents: write # to create release (changesets/action)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Build
+        uses: ./.github/setup
+
+      - name: Create Release
+        id: changesets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: changesets/action@v1
+        with:
+          version: bun x changeset version
+          publish: bun x changeset publish
