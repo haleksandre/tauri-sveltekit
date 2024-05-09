@@ -1,0 +1,101 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/rust
+{
+	"name": "tauri",
+	"build": {
+		"context": ".",
+		"dockerfile": "./Dockerfile"
+	},
+	"runArgs": [
+		"--userns=keep-id",
+		"--security-opt=label=disable",
+		"--device=nvidia.com/gpu=all",
+		"--net=host",
+		"--privileged"
+	],
+	"containerEnv": {
+		"HOME": "/home/vscode",
+		"NO_AT_BRIDGE": "1",
+		"DISPLAY": "${localEnv:DISPLAY}",
+		"WEBKIT_DISABLE_COMPOSITING_MODE": "1",
+		"PNPM_HOME": "/pnpm"
+		// "PATH": "$PNPM_HOME:$PATH"
+	},
+	"mounts": [
+		{
+			"source": "/run/user/1000/gdm/Xauthority",
+			"target": "/home/vscode/.Xauthority",
+			"type": "bind"
+		},
+		{
+			"source": "/tmp/.X11-unix",
+			"target": "/tmp/.X11-unix",
+			"type": "bind"
+		},
+		{
+			"source": "/run/user/1000/bus",
+			"target": "/run/user/1000/bus",
+			"type": "bind"
+		}
+	],
+	"containerUser": "vscode",
+	"remoteUser": "vscode",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"vadimcn.vscode-lldb",
+				"tauri-apps.tauri-vscode",
+				"rust-lang.rust-analyzer",
+				"svelte.svelte-vscode",
+				"esbenp.prettier-vscode",
+				"dbaeumer.vscode-eslint",
+				"xabikos.JavaScriptSnippets",
+				"dzannotti.vscode-babel-coloring",
+				"mikestead.dotenv",
+				"EditorConfig.EditorConfig",
+				"eamodio.gitlens",
+				"vscode-icons-team.vscode-icons",
+				"fwcd.kotlin",
+				"vscjava.vscode-gradle",
+				"ms-azuretools.vscode-docker",
+				"GitHub.vscode-github-actions"
+			],
+			"settings": {
+				"[javascript]": {
+					"editor.formatOnSave": true,
+					"editor.formatOnPaste": true,
+					"editor.defaultFormatter": "esbenp.prettier-vscode"
+				},
+				"[typescript]": {
+					"editor.formatOnSave": true,
+					"editor.formatOnPaste": true,
+					"editor.defaultFormatter": "esbenp.prettier-vscode"
+				},
+				"[svelte]": {
+					"editor.formatOnSave": true,
+					"editor.formatOnPaste": true,
+					"editor.defaultFormatter": "svelte.svelte-vscode"
+				},
+				"[css]": {
+					"editor.formatOnSave": true,
+					"editor.formatOnPaste": true,
+					"editor.defaultFormatter": "esbenp.prettier-vscode"
+				},
+				"[html]": {
+					"editor.formatOnSave": true,
+					"editor.formatOnPaste": true,
+					"editor.defaultFormatter": "esbenp.prettier-vscode"
+				},
+				"[yaml]": {
+					"editor.formatOnSave": true,
+					"editor.formatOnPaste": true,
+					"editor.defaultFormatter": "esbenp.prettier-vscode"
+				},
+				"eslint.options": {
+					"extensions": [".html", ".js", ".ts", ".svelte"]
+				},
+				"eslint.validate": ["html", "svelte", "javascript", "typescript"]
+			}
+		}
+	}
+}
