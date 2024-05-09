@@ -1,0 +1,54 @@
+name: Build
+on:
+  workflow_call:
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: true
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            args: ""
+            shell: bash
+          - platform: macos-latest # for Arm based macs (M1 and above).
+            args: "--target aarch64-apple-darwin"
+            shell: bash
+          - platform: macos-latest # for Intel based macs.
+            args: "--target x86_64-apple-darwin"
+            shell: bash
+          - platform: windows-latest
+            args: "--target aarch64-pc-windows-msvc --bundles nsis"
+            shell: pwsh
+          - platform: windows-latest
+            args: "--target x86_64-pc-windows-msvc"
+            shell: pwsh
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/setup
+        with:
+          ubuntu-dependencies: true
+
+      - name: Build Frontend
+        run: bun run build:frontend
+
+      - name: Build Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: "bun x tauri"
+          args: ${{ matrix.args }}
