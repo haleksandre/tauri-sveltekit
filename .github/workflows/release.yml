@@ -1,12 +1,10 @@
 name: release
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
-      - main
-      - next
-    paths:
-      - package.json
-      - '.changeset/**'
+      - changeset-release/*
   workflow_dispatch:
   workflow_call:
 
