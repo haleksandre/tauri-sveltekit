@@ -44,19 +44,21 @@ ENV ANDROID_HOME /opt/android-sdk
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV NDK_HOME=${ANDROID_HOME}/ndk/${NDK}/
 
-ENV PATH "$PATH:/home/linuxbrew/.linuxbrew/Homebrew/bin:/opt/android-sdk/cmdline-tools/tools/bin"
+ENV PATH "$PATH:/home/linuxbrew/.linuxbrew/Homebrew/bin:/opt/gradle/bin:/opt/kotlinc/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/cmdline-tools/tools/bin:/opt/android-sdk/platform-tools:/opt/android-sdk/emulator"
 
 # COPY --from=android --chown 1000:1000 /opt/android-sdk /opt/android-sdk
 COPY --from=android --chown=1000:1000 ${ANDROID_HOME} ${ANDROID_HOME}
 COPY --from=android --chown=1000:1000 ${JAVA_HOME} ${JAVA_HOME}
+COPY --from=android --chown=1000:1000 /opt/gradle /opt/gradle
+COPY --from=android --chown=1000:1000 /opt/kotlinc /opt/kotlinc
+
+COPY --from=brew --chown=1000:1000 /home/linuxbrew/.linuxbrew /home/linuxbrew/.linuxbrew
 
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node /usr/local/bin /usr/local/bin
 
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=bun /usr/local/bin/bunx /usr/local/bin/bunx
-
-COPY --from=brew /home/linuxbrew/.linuxbrew /home/linuxbrew/.linuxbrew
 
 RUN ln -s /home/linuxbrew/.linuxbrew/Homebrew/bin/brew /usr/local/bin/brew
 
