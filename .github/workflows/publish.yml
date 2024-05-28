@@ -52,6 +52,7 @@ jobs:
           PRERELEASE: ${{ github.ref_name != 'main' }}
         with:
           tauriScript: "bun x tauri"
+          args: ${{ matrix.target && format('--target {0}', matrix.target) }} ${{ matrix.args }}
           releaseId: ${{ needs.release.outputs.RELEASE_UPLOAD_ID }}
 
   android:
@@ -62,6 +63,8 @@ jobs:
       matrix:
         include:
           - platform: ubuntu-latest
+            target: ""
+            args: ""
             shell: bash
     runs-on: ${{ matrix.platform }}
     steps:
