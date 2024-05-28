@@ -5,8 +5,8 @@ on:
       - main
       - next
     paths:
+      - '**'
       - '!package.json'
-      - '.changeset/**'
   workflow_dispatch:
   workflow_call:
 
