@@ -5,8 +5,7 @@ on:
       - main
       - next
     paths:
-      - '!package.json'
-      - '.changeset/**'
+      - '.changeset/**'      
   workflow_dispatch:
   workflow_call:
 
@@ -46,6 +45,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: changesets/action@v1
         with:
-          commit: "chore(release): v${{ env.VERSION }}"
+          commit: "chore(release): v${{ env.VERSION }} [skip ci]"
           title: "release v${{ env.VERSION }}"
           version: bun x changeset version
