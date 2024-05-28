@@ -21,30 +21,38 @@ inputs:
     description: "Include playwright setup"
     type: boolean
     default: false
+outputs:
+  ndk-path:
+    description: Installation path
+    value: ${{ steps.ndk.outputs.ndk-path }}
+  ndk-full-version:
+    description: Full NDK version
+    value: ${{ steps.ndk.outputs.ndk-full-version }}
+
 runs:
   using: "composite"
   steps:
     - name: Setup Node
-      if: inputs.node == 'true' || inputs.playwright == 'true'
+      if: inputs.node || inputs.playwright
       uses: actions/setup-node@v4
       with:
         node-version: lts/*
 
     - name: Setup Bun
-      if: inputs.node == 'true' || inputs.playwright == 'true'
+      if: inputs.node || inputs.playwright
       uses: oven-sh/setup-bun@v1
       with:
         bun-version: latest
 
     - name: Setup Rust
-      if: inputs.rust == 'true' || inputs.ubuntu-dependencies == 'true'
+      if: inputs.rust || inputs.ubuntu-dependencies || inputs.android
       uses: dtolnay/rust-toolchain@stable
       with:
         # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
         targets: ${{ matrix.target || '' }}
 
     - name: Setup Java
-      if: matrix.platform == 'ubuntu-latest' && inputs.android == 'true'
+      if: matrix.platform == 'ubuntu-latest' && inputs.android
       id: java
       uses: actions/setup-java@v3
       with:
@@ -53,16 +61,17 @@ runs:
         cache: gradle
 
     - name: Setup NDK
-      if: matrix.platform == 'ubuntu-latest' && inputs.android == 'true'
+      if: matrix.platform == 'ubuntu-latest' && inputs.android
       id: ndk
       uses: nttld/setup-ndk@v1
       with:
-        ndk-version: 27.0.11718014
+        ndk-version: r26d
+        link-to-sdk: true
         local-cache: true
 
     # TODO check after https://github.com/nttld/setup-ndk/issues/518 is fixed
     - name: Restore Android Symlinks
-      if: matrix.platform == 'ubuntu-latest' && inputs.android == 'true'
+      if: matrix.platform == 'ubuntu-latest' && inputs.android
       shell: ${{ matrix.shell }}
       run: |
         directory="${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
@@ -74,20 +83,20 @@ runs:
         done
 
     - name: Install Dependencies
-      if: inputs.node == 'true' || inputs.playwright == 'true'
+      if: inputs.node || inputs.playwright
       shell: ${{ matrix.shell }}
       run: |
         bun install
 
     - name: Install Ubuntu Dependencies
-      if: matrix.platform == 'ubuntu-latest' && inputs.ubuntu-dependencies == 'true'
+      if: matrix.platform == 'ubuntu-latest' && inputs.ubuntu-dependencies
       shell: ${{ matrix.shell }}
       run: |
         sudo apt-get update
         sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
     - name: Install Playwright
-      if: inputs.playwright == 'true'
+      if: inputs.playwright
       shell: ${{ matrix.shell }}
       run: |
         bun x playwright install --with-deps

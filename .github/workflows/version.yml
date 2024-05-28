@@ -5,19 +5,20 @@ on:
       - main
       - next
     paths:
-      - '!package.json'
       - '.changeset/**'
   workflow_dispatch:
   workflow_call:
 
 jobs:
   # test:
+  #   if: ${{ !startsWith(github.event.head_commit.message, 'chore(release)') }}
   #   permissions:
   #     contents: write
   #   uses: ./.github/workflows/test.yml
   #   secrets: inherit
   
   version:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release)') }}
     # if: needs.test.result == 'success'
     # needs: test
     permissions:
@@ -47,5 +48,5 @@ jobs:
         uses: changesets/action@v1
         with:
           commit: "chore(release): v${{ env.VERSION }}"
-          title: "release v${{ env.VERSION }}"
+          title: "chore(merge): v${{ env.VERSION }}"
           version: bun x changeset version
