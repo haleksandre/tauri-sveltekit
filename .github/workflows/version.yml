@@ -5,19 +5,20 @@ on:
       - main
       - next
     paths:
-      - '!package.json'
-      - '.changeset/**'
+      - ".changeset/**"
   workflow_dispatch:
   workflow_call:
 
 jobs:
   # test:
+  #   if: ${{ !startsWith(github.event.head_commit.message, 'chore(release)') }}
   #   permissions:
   #     contents: write
   #   uses: ./.github/workflows/test.yml
   #   secrets: inherit
-  
+
   version:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release)') }}
     # if: needs.test.result == 'success'
     # needs: test
     permissions:
@@ -37,15 +38,18 @@ jobs:
         uses: ./.github/setup
 
       - name: Next Version
+        id: version
+        shell: bash
         run: |
-          echo "VERSION=$(bun x changeset status --output=release.json && jq -r '.releases[0].newVersion' release.json && rm release.json)" >> "$GITHUB_ENV"
+          echo "version=$(bun x changeset status --output=release.json && jq -r '.releases[0].newVersion' release.json && rm release.json)" >> "$GITHUB_OUTPUT"
 
       - name: Create Version
         id: changesets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
         uses: changesets/action@v1
         with:
-          commit: "chore(release): v${{ env.VERSION }}"
-          title: "release v${{ env.VERSION }}"
+          commit: "chore(version): v${{ env.VERSION }}"
+          title: "chore(release): v${{ env.VERSION }}"
           version: bun x changeset version
