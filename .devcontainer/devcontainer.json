@@ -23,7 +23,17 @@
 	},
 	"mounts": [
 		{
-			"source": "/run/user/1000/gdm/Xauthority",
+			"source": "/home/${localEnv:USER}/.ssh",
+			"target": "/home/vscode/.ssh",
+			"type": "bind"
+		},
+		{
+			"source": "/home/${localEnv:USER}/.ssh",
+			"target": "/home/${localEnv:USER}/.ssh",
+			"type": "bind"
+		},
+		{
+			"source": "/run/user/${localEnv:UID}/gdm/Xauthority",
 			"target": "/home/vscode/.Xauthority",
 			"type": "bind"
 		},
@@ -33,8 +43,8 @@
 			"type": "bind"
 		},
 		{
-			"source": "/run/user/1000/bus",
-			"target": "/run/user/1000/bus",
+			"source": "/run/user/${localEnv:UID}/bus",
+			"target": "/run/user/${localEnv:UID}/bus",
 			"type": "bind"
 		}
 	],
