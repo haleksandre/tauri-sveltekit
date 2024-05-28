@@ -21,6 +21,14 @@ inputs:
     description: "Include playwright setup"
     type: boolean
     default: false
+outputs:
+  ndk-path:
+    description: Installation path
+    value: ${{ steps.ndk.outputs.ndk-path }}
+  ndk-full-version:
+    description: Full NDK version
+    value: ${{ steps.ndk.outputs.ndk-full-version }}
+
 runs:
   using: "composite"
   steps:
@@ -57,7 +65,8 @@ runs:
       id: ndk
       uses: nttld/setup-ndk@v1
       with:
-        ndk-version: 27.0.11718014
+        ndk-version: r26d
+        link-to-sdk: true
         local-cache: true
 
     # TODO check after https://github.com/nttld/setup-ndk/issues/518 is fixed
