@@ -57,7 +57,8 @@ runs:
       id: ndk
       uses: nttld/setup-ndk@v1
       with:
-        ndk-version: 27.0.11718014
+        ndk-version: r26d
+        link-to-sdk: true
         local-cache: true
 
     # TODO check after https://github.com/nttld/setup-ndk/issues/518 is fixed
