@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
-    tray::{ClickType, TrayIconBuilder},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager, Runtime, WebviewUrl, WebviewWindowBuilder,
 };
 
@@ -100,7 +100,12 @@ pub fn create<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            if event.click_type == ClickType::Left {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
                 let app = tray.app_handle();
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.show();
