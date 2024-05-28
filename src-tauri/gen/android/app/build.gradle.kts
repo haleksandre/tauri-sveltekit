@@ -9,7 +9,7 @@ plugins {
 
 // Create a variable called keystorePropertiesFile, and initialize it to your
 // keystore.properties file, in the rootProject folder.
-val keystorePropertiesFile = rootProject.file("key.properties")
+val keystorePropertiesFile = rootProject.file("./app/key.properties")
 
 // Initialize a new Properties() object called keystoreProperties.
 val keystoreProperties = Properties()
