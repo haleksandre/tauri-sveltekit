@@ -21,8 +21,9 @@ jobs:
         include:
           - platform: ubuntu-latest
     outputs:
+      published: ${{ steps.changesets.outputs.published }}
       id: ${{ steps.release.outputs.id }}
-      tag: ${{ steps.release.outputs.tag }}  
+      tag: ${{ steps.release.outputs.tag }}
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout Repository
@@ -48,23 +49,26 @@ jobs:
         with:
           result-encoding: string
           script: |
-            const releases = ${{ steps.changesets.outputs.publishedPackages }};
-            const { name, version } = releases[0];
-
-            const { owner, repo } = context.repo;
-            const tag = `v${version}`;
-
-            const { data: { id } } = await github.rest.repos.getReleaseByTag({
-              owner,
-              repo,
-              tag,
-            });
-
-            core.setOutput('id', id);
-            core.setOutput('tag', tag);
+            if ( ${{ steps.changesets.outputs.published }}) {
+              const releases = ${{ steps.changesets.outputs.publishedPackages }};
+              const { name, version } = releases[0];
+  
+              const { owner, repo } = context.repo;
+              const tag = `v${version}`;
+  
+              const { data: { id } } = await github.rest.repos.getReleaseByTag({
+                owner,
+                repo,
+                tag,
+              });
+  
+              core.setOutput('id', id);
+              core.setOutput('tag', tag);
+            }
 
   desktop:
     needs: release
+    if: ${{ needs.release.outputs.published }}
     permissions:
       contents: write
     strategy:
@@ -115,6 +119,7 @@ jobs:
 
   android:
     needs: release
+    if: ${{ needs.release.outputs.published }}
     permissions:
       contents: write
     strategy:
