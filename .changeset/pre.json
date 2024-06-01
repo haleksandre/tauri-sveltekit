@@ -4,5 +4,7 @@
   "initialVersions": {
     "vndbracket": "1.0.0"
   },
-  "changesets": []
+  "changesets": [
+    "eight-penguins-wink"
+  ]
 }
