@@ -1,0 +1,1 @@
+version=$(bun x changeset status --output=release.json && jq -r .releases[0].newVersion release.json && rm release.json)
