@@ -4,5 +4,7 @@
   "initialVersions": {
     "tauri-sveltekit": "1.0.0-next.0"
   },
-  "changesets": []
+  "changesets": [
+    "famous-berries-study"
+  ]
 }
