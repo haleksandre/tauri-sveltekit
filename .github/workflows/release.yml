@@ -11,7 +11,7 @@ on:
 
 jobs:
   release:
-    if: github.event.pull_request.merged
+    if: github.event.pull_request.merged == true
     permissions:
       contents: write # to create release (changesets/action)
       pull-requests: write # to create pull request (changesets/action)
@@ -26,6 +26,7 @@ jobs:
       id: ${{ steps.release.outputs.id }}
       version: ${{ steps.release.outputs.version }}
       tag: ${{ steps.release.outputs.tag }}
+      number: ${{ steps.release.outputs.number }}
       prerelease: ${{ steps.release.outputs.prerelease }}
     runs-on: ${{ matrix.platform }}
     steps:
@@ -49,43 +50,71 @@ jobs:
 
       - name: Get Release
         id: release
+        if: ${{ steps.changesets.outputs.published }}
         uses: actions/github-script@v7
         with:
           result-encoding: string
           script: |
-            if (${{ steps.changesets.outputs.published }}) {
-              const releases = ${{ steps.changesets.outputs.publishedPackages }};
-              const { name, version } = releases[0];
+            const releases = ${{ steps.changesets.outputs.publishedPackages }};
+            const { name, version } = releases[0];
 
-              const { setOutput, info } = core;
-              const { owner, repo } = context.repo;
+            const { setOutput, info } = core;
+            const { owner, repo } = context.repo;
 
-              const tag = `v${version}`;
-              const {
-                data: { id, prerelease, ...data }
-              } = await github.rest.repos.getReleaseByTag({
-                owner,
-                repo,
-                tag
-              });
+            const tag = `v${version}`;
+            const {
+              data: { id, prerelease, ...data }
+            } = await github.rest.repos.getReleaseByTag({
+              owner,
+              repo,
+              tag
+            });
 
-              info(`set outputs`);
-
-              info(`  data: ${JSON.stringify({ id, prerelease, ...data })}`);
-              setOutput(`data`, { id, prerelease, ...data });
-
-              info(`  id: "${id}"`);
-              setOutput(`id`, id);
-
-              info(`  version: "${version}"`);
-              setOutput(`version`, version);
-
-              info(`  tag: "${tag}"`);
-              setOutput(`tag`, tag);
-
-              info(`  prerelease: "${prerelease}"`);
-              setOutput(`prerelease`, prerelease);
+            // Use to convert to a numbered prerelease for WIX releases
+            const toNumber = (version) => {
+              const parts = version.split("-");
+            
+              const prerelease = {
+                alpha: 1000,
+                beta: 2000,
+                next: 3000,
+                rc: 5000,
+              };
+            
+              if (parts.length > 1) {
+                const label = parts[1].split(".")[0].toLowerCase();
+            
+                if (prerelease[label]) {
+                  const number = parseInt(parts[1].split(".")[1] || "0", 10);
+                  const base = parts[0];
+                  return `${base}-${prerelease[label] + number}`;
+                }
+              }
+            
+              return version;
             }
+
+            const number = toNumber(version);
+            
+            info(`set outputs`);
+
+            info(`  data: ${JSON.stringify({ id, prerelease, ...data })}`);
+            setOutput(`data`, { id, prerelease, ...data });
+
+            info(`  id: "${id}"`);
+            setOutput(`id`, id);
+
+            info(`  version: "${version}"`);
+            setOutput(`version`, version);
+
+            info(`  tag: "${tag}"`);
+            setOutput(`tag`, tag);
+
+            info(`  number: "${number}"`);
+            setOutput(`number`, number);
+
+            info(`  prerelease: "${prerelease}"`);
+            setOutput(`prerelease`, prerelease);
             
   desktop:
     needs: release
@@ -114,7 +143,8 @@ jobs:
             shell: pwsh
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
-            args: --target x86_64-pc-windows-msvc
+            args: |
+              --target x86_64-pc-windows-msvc ${{ needs.release.outputs.prerelease && format('--config ''"{{ \"version\": \"{0}\" }}"''', needs.release.outputs.number) || '' }}
             shell: pwsh
     runs-on: ${{ matrix.platform }}
     steps:
@@ -137,7 +167,6 @@ jobs:
           tauriScript: bun x tauri
           args: ${{ matrix.args }}
           releaseId: ${{ needs.release.outputs.id }}
-          prerelease: ${{ needs.release.outputs.prerelease }}
 
   android:
     needs: release
@@ -189,7 +218,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tauriScript: bun x tauri android
-          prerelease: ${{ needs.release.outputs.prerelease }}
       
       - name: Publish
         uses: softprops/action-gh-release@v1
